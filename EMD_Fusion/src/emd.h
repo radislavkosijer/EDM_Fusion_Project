@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
+#include "led.h"
 
 /** @brief Maximum signal length (width * height). */
 #define MAX_SIGNAL_LEN (200 * 200)

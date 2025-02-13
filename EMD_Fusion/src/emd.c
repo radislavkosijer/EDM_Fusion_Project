@@ -94,6 +94,13 @@ static void linear_interp_simd(const int32_t* extrema_pos, const int32_t* extrem
 }
 
 void emd_decompose(int32_t* signal, int length) {
+    // Blink LED7 3 times as indicator of start of function
+    for (int i = 0; i < 3; i++) {
+        led_on(6);  // LED7
+        Delay_Cycles(3500000);
+        led_off(6);
+        Delay_Cycles(3500000);
+    }
     int num_max = 0, num_min = 0;
 
     // Process the first element separately.
@@ -142,11 +149,19 @@ void emd_decompose(int32_t* signal, int length) {
     for (int i = 0; i < length; i++) {
         signal[i] -= (upper_env[i] + lower_env[i]) >> 1;
     }
+    // After EMD decomposition, LED7 stays on
+    led_on(6);
 }
 
 void calculate_local_variance(const int32_t* imf, int width, int height, int32_t* variance_map) {
-    const int half_window = WINDOW_SIZE / 2;
-
+    // Blink LED6 3 times as indicator of start of function
+    for (int i = 0; i < 3; i++) {
+        led_on(5);  // LED6
+        Delay_Cycles(3500000);
+        led_off(5);
+        Delay_Cycles(3500000);
+    }
+	const int half_window = WINDOW_SIZE / 2;
     #pragma vector_for
     for (int y = 0; y < height; y++) {
         // Precompute vertical window boundaries.
@@ -176,10 +191,19 @@ void calculate_local_variance(const int32_t* imf, int width, int height, int32_t
             variance_map[y * width + x] = var;
         }
     }
+    // After calculating local variance, LED6 stays on
+    led_on(5);
 }
 
 void generate_decision_mask(const int32_t* var_map1, const int32_t* var_map2,
                             int width, int height, char* alpha_mask) {
+    // Blink LED5 3 times as indicator of start of function
+    for (int i = 0; i < 3; i++) {
+        led_on(4);  // LED5
+        Delay_Cycles(3500000);
+        led_off(4);
+        Delay_Cycles(3500000);
+    }
     int64_t sum_var = 0;
     int total_pixels = width * height;
     for (int i = 0; i < total_pixels; i++) {
@@ -197,11 +221,20 @@ void generate_decision_mask(const int32_t* var_map1, const int32_t* var_map2,
         alpha_mask[i] = (diff > adaptive_epsilon)  ? ALPHA_A :
                         (diff < -adaptive_epsilon) ? ALPHA_B : ALPHA_AVG;
     }
+    // After generatating decision mask, LED5 stays on
+    led_on(4);
 }
 
 void fuse_images(const unsigned char* imgA, const unsigned char* imgB,
                  const char* alpha_mask, int width, int height, unsigned char* fused_img) {
-    #pragma vector_for
+	// Blink LED3 3 times as indicator of start of function
+	for (int i = 0; i < 3; i++) {
+		led_on(3);  // LED3
+		Delay_Cycles(3500000);
+		led_off(3);
+		Delay_Cycles(3500000);
+	}
+	#pragma vector_for
     for (int i = 0; i < width * height; i++) {
         switch (alpha_mask[i]) {
             case ALPHA_A:
@@ -215,24 +248,18 @@ void fuse_images(const unsigned char* imgA, const unsigned char* imgB,
                 break;
         }
     }
-}
-
-void convert_to_q16_16(const unsigned char* input, int32_t* output, int size) {
-    #pragma SIMD_for
-    for (int i = 0; i < size; i++) {
-        output[i] = ((int32_t)input[i]) << 16;
-    }
-}
-
-void convert_from_q16_16(const int32_t* input, unsigned char* output, int size) {
-    #pragma SIMD_for
-    for (int i = 0; i < size; i++) {
-        int32_t val = (input[i] + (1 << 15)) >> 16; // Add rounding offset
-        output[i] = (val < 0) ? 0 : (val > 255 ? 255 : val);
-    }
+    // After fusing images, LED3 stays on
+    led_on(3);
 }
 
 void histogram_stretch(unsigned char* img, int width, int height){
+	// Blink LED4 3 times as indicator of start of function
+	for (int i = 0; i < 3; i++) {
+		led_on(2);  // LED4
+		Delay_Cycles(3500000);
+		led_off(2);
+		Delay_Cycles(3500000);
+	}
     int num_pixels = width * height;
     unsigned char minVal = 255;
     unsigned char maxVal = 0;
@@ -263,4 +290,34 @@ void histogram_stretch(unsigned char* img, int width, int height){
         if (val > 255) val = 255;
         img[i] = (unsigned char)val;
     }
+    // After linear histogram stretching, LED4 stays on
+    led_on(2);
 }
+
+void convert_to_q16_16(const unsigned char* input, int32_t* output, int size) {
+	// Blink LED8 3 times as indicator of start
+	for (int i = 0; i < 3; i++) {
+        led_on(7);  // LED8
+        Delay_Cycles(3500000);
+        led_off(7);
+        Delay_Cycles(3500000);
+    }
+    #pragma SIMD_for
+    for (int i = 0; i < size; i++) {
+
+        output[i] = ((int32_t)input[i]) << 16;
+    }
+    // After conversion, LED8 stays on
+    led_on(7);
+
+}
+
+void convert_from_q16_16(const int32_t* input, unsigned char* output, int size) {
+    #pragma SIMD_for
+    for (int i = 0; i < size; i++) {
+        int32_t val = (input[i] + (1 << 15)) >> 16; // Add rounding offset
+        output[i] = (val < 0) ? 0 : (val > 255 ? 255 : val);
+    }
+}
+
+

@@ -1,5 +1,6 @@
 #include "image_io.h"
 
+
 /**
  * @brief Save a fused image to a binary file.
  *
@@ -17,7 +18,14 @@
  * Author: Radislav Kosijer
  */
 void save_fused_image(const char *filename, unsigned int width, unsigned int height, const unsigned char *fused_img) {
-    FILE *fp = fopen(filename, "wb");
+    // Blink LED1 3 times as indicator of start of function
+	for (int i = 0; i < 6; i++) {
+		led_on(1);  // LED2
+		Delay_Cycles(3500000);
+		led_off(1);
+		Delay_Cycles(3500000);
+	}
+	FILE *fp = fopen(filename, "wb");
     if (fp == NULL) {
         printf("Error: Cannot open file %s for writing.\n", filename);
         return;
@@ -39,7 +47,6 @@ void save_fused_image(const char *filename, unsigned int width, unsigned int hei
     size_t groups = num_pixels / 4;
     size_t leftovers = num_pixels % 4;
     const unsigned char *p = fused_img;
-
     // Process pixel data in groups of 4 bytes
     for (size_t i = 0; i < groups; i++) {
         uint32_t pixelGroup = ((uint32_t)p[0])        |
@@ -50,6 +57,16 @@ void save_fused_image(const char *filename, unsigned int width, unsigned int hei
             printf("Error: Failed to write grouped pixel data.\n");
             fclose(fp);
             return;
+        }
+        if(i == groups/2){
+            // After writing half of data, LED2 stays on and LED1 starts to blink
+            led_on(1);
+        	for (int i = 0; i < 6; i++) {
+        		led_on(0);  // LED1
+        		Delay_Cycles(3500000);
+        		led_off(0);
+        		Delay_Cycles(3500000);
+        	}
         }
         p += 4;
     }
@@ -64,4 +81,5 @@ void save_fused_image(const char *filename, unsigned int width, unsigned int hei
     }
 
     fclose(fp);
+    led_on(0);
 }

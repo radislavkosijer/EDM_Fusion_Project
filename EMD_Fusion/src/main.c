@@ -28,7 +28,8 @@
 #include <stdint.h>
 #include <cycle_count.h>
 #include "emd.h"         // Declarations for EMD functions and conversions.
-#include "image_io.h"    // Functions for saving images
+#include "image_io.h"   // Functions for saving images
+#include "led.h"       // LED control
 #include "p27a.h"
 #include "p27b.h"
 
@@ -70,6 +71,9 @@ static unsigned char buffer_fused_image[MAX_SIGNAL_LEN];
 int main(void) {
     cycle_t start_count;
     cycle_t final_count;
+
+    led_init();         // Inicijalizuj LED diode
+    led_all_off();      // Gašenje svih LED dioda na početku
 
     // Assume both images have the same dimensions.
     unsigned int width = p27a_width;
@@ -122,12 +126,12 @@ int main(void) {
     fuse_images(vector1, vector2, alpha_mask, width, height, fused_img);
     STOP_CYCLE_COUNT(final_count, start_count);
     PRINT_CYCLES("Images fusion: \n", final_count);
-//
-//    // Perform linear histogram stretching
-//    START_CYCLE_COUNT(start_count);
-//    histogram_stretch(fused_img, width, height);
-//    STOP_CYCLE_COUNT(final_count, start_count);
-//    PRINT_CYCLES("Stretching pixel value: \n", final_count);
+
+    // Perform linear histogram stretching
+    START_CYCLE_COUNT(start_count);
+    histogram_stretch(fused_img, width, height);
+    STOP_CYCLE_COUNT(final_count, start_count);
+    PRINT_CYCLES("Stretching pixel value: \n", final_count);
 
     // Save the fused image to a binary file.
     START_CYCLE_COUNT(start_count);
