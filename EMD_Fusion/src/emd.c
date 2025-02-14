@@ -33,11 +33,6 @@ static int32_t min_val[MAX_EXTREMA];
 #pragma section("seg_sdram1")
 static int32_t imf[MAX_SIGNAL_LEN];
 
-/** Named constants for alpha mask decisions. */
-#define ALPHA_A    0
-#define ALPHA_B    1
-#define ALPHA_AVG  2
-
 static void linear_interp_simd(const int32_t* extrema_pos, const int32_t* extrema_val,
                                int num_extrema, int32_t* envelope, int signal_length)
 {
@@ -71,7 +66,6 @@ static void linear_interp_simd(const int32_t* extrema_pos, const int32_t* extrem
         int j = 0;
 
         // Process in pairs.
-		#pragma vector_for
         for (; j <= samples - 2; j += 2) {
             int32_t prod0 = (int32_t)(((int64_t)slope * j) >> 31);
             int32_t prod1 = (int32_t)(((int64_t)slope * (j + 1)) >> 31);
@@ -94,13 +88,6 @@ static void linear_interp_simd(const int32_t* extrema_pos, const int32_t* extrem
 }
 
 void emd_decompose(int32_t* signal, int length) {
-    // Blink LED7 3 times as indicator of start of function
-    for (int i = 0; i < 3; i++) {
-        led_on(6);  // LED7
-        Delay_Cycles(3500000);
-        led_off(6);
-        Delay_Cycles(3500000);
-    }
     int num_max = 0, num_min = 0;
 
     // Process the first element separately.
@@ -149,166 +136,14 @@ void emd_decompose(int32_t* signal, int length) {
     for (int i = 0; i < length; i++) {
         signal[i] -= (upper_env[i] + lower_env[i]) >> 1;
     }
-    // After EMD decomposition, LED7 stays on
-    led_on(6);
-}
-
-void calculate_local_variance(const int32_t* imf, int width, int height, int32_t* variance_map) {
-    // Blink LED6 3 times as indicator of start of function
-    for (int i = 0; i < 3; i++) {
-        led_on(5);  // LED6
-        Delay_Cycles(3500000);
-        led_off(5);
-        Delay_Cycles(3500000);
-    }
-	const int half_window = WINDOW_SIZE / 2;
-    #pragma vector_for
-    for (int y = 0; y < height; y++) {
-        // Precompute vertical window boundaries.
-        int y_start = (y - half_window < 0) ? 0 : (y - half_window);
-        int y_end   = (y + half_window >= height) ? (height - 1) : (y + half_window);
-
-        for (int x = 0; x < width; x++) {
-            // Precompute horizontal window boundaries.
-            int x_start = (x - half_window < 0) ? 0 : (x - half_window);
-            int x_end   = (x + half_window >= width) ? (width - 1) : (x + half_window);
-
-            int64_t sum = 0;
-            int64_t sum_sq = 0;
-            int count = 0;
-			#pragma SIMD_for
-            for (int j = y_start; j <= y_end; j++) {
-                for (int k = x_start; k <= x_end; k++) {
-                    int32_t val = imf[j * width + k];
-                    sum += val;
-                    sum_sq += ((int64_t)val * val) >> 16; // Adjust for Q16.16 format
-                    count++;
-                }
-            }
-
-            int32_t mean = (int32_t)(sum / count);
-            int32_t var = (int32_t)((sum_sq / count) - (((int64_t)mean * mean) >> 16));
-            variance_map[y * width + x] = var;
-        }
-    }
-    // After calculating local variance, LED6 stays on
-    led_on(5);
-}
-
-void generate_decision_mask(const int32_t* var_map1, const int32_t* var_map2,
-                            int width, int height, char* alpha_mask) {
-    // Blink LED5 3 times as indicator of start of function
-    for (int i = 0; i < 3; i++) {
-        led_on(4);  // LED5
-        Delay_Cycles(3500000);
-        led_off(4);
-        Delay_Cycles(3500000);
-    }
-    int64_t sum_var = 0;
-    int total_pixels = width * height;
-    for (int i = 0; i < total_pixels; i++) {
-        sum_var += var_map1[i] + var_map2[i];
-    }
-    int32_t avg_var = (int32_t)(sum_var / (2 * total_pixels));
-    // Set threshold at 20% of average variance.
-    int32_t adaptive_epsilon = (avg_var * 20) / 100;
-
-    #pragma vector_for
-    for (int i = 0; i < total_pixels; i++) {
-        // Convert the Q16.16 difference to an integer.
-        const int32_t diff = (var_map1[i] - var_map2[i] + 0x8000) >> 16;
-        // Choose ALPHA_A if image A has higher variance, ALPHA_B if lower, otherwise ALPHA_AVG.
-        alpha_mask[i] = (diff > adaptive_epsilon)  ? ALPHA_A :
-                        (diff < -adaptive_epsilon) ? ALPHA_B : ALPHA_AVG;
-    }
-    // After generatating decision mask, LED5 stays on
-    led_on(4);
-}
-
-void fuse_images(const unsigned char* imgA, const unsigned char* imgB,
-                 const char* alpha_mask, int width, int height, unsigned char* fused_img) {
-	// Blink LED3 3 times as indicator of start of function
-	for (int i = 0; i < 3; i++) {
-		led_on(3);  // LED3
-		Delay_Cycles(3500000);
-		led_off(3);
-		Delay_Cycles(3500000);
-	}
-	#pragma vector_for
-    for (int i = 0; i < width * height; i++) {
-        switch (alpha_mask[i]) {
-            case ALPHA_A:
-                fused_img[i] = imgA[i];
-                break;
-            case ALPHA_B:
-                fused_img[i] = imgB[i];
-                break;
-            case ALPHA_AVG:
-                fused_img[i] = (imgA[i] + imgB[i] + 1) >> 1;
-                break;
-        }
-    }
-    // After fusing images, LED3 stays on
-    led_on(3);
-}
-
-void histogram_stretch(unsigned char* img, int width, int height){
-	// Blink LED4 3 times as indicator of start of function
-	for (int i = 0; i < 3; i++) {
-		led_on(2);  // LED4
-		Delay_Cycles(3500000);
-		led_off(2);
-		Delay_Cycles(3500000);
-	}
-    int num_pixels = width * height;
-    unsigned char minVal = 255;
-    unsigned char maxVal = 0;
-
-    /* Find the minimum and maximum pixel values. */
-    #pragma vector_for
-    for (int i = 0; i < num_pixels; i++) {
-        unsigned char val = img[i];
-        if (val < minVal) {
-            minVal = val;
-        }
-        if (val > maxVal) {
-            maxVal = val;
-        }
-    }
-
-    /* If all pixels are identical, no stretching is needed. */
-    int range = maxVal - minVal;
-    if (range == 0) {
-        return;
-    }
-
-    /* Linearly stretch the pixel range to [0..255]. */
-    #pragma vector_for
-    for (int i = 0; i < num_pixels; i++) {
-        int val = (img[i] - minVal) * 255 / range;
-        if (val < 0)   val = 0;
-        if (val > 255) val = 255;
-        img[i] = (unsigned char)val;
-    }
-    // After linear histogram stretching, LED4 stays on
-    led_on(2);
 }
 
 void convert_to_q16_16(const unsigned char* input, int32_t* output, int size) {
-	// Blink LED8 3 times as indicator of start
-	for (int i = 0; i < 3; i++) {
-        led_on(7);  // LED8
-        Delay_Cycles(3500000);
-        led_off(7);
-        Delay_Cycles(3500000);
-    }
     #pragma SIMD_for
     for (int i = 0; i < size; i++) {
 
         output[i] = ((int32_t)input[i]) << 16;
     }
-    // After conversion, LED8 stays on
-    led_on(7);
 
 }
 

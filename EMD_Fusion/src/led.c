@@ -12,28 +12,11 @@
 
 #include "led.h"
 
-/**
- * @brief Delay execution for a specified number of cycles.
- *
- * This function performs a busy-wait loop for the specified number of cycles.
- *
- * @param delayCount Number of cycles to delay.
- */
 void Delay_Cycles(unsigned int delayCount)
 {
     while(delayCount--);
 }
 
-/**
- * @brief Initialize the System Routing Unit (SRU) for LED configuration.
- *
- * This function configures the SRU for the following LED mappings:
- * - LED1, LED2, LED3 (DPI LEDs) are configured using flag pins and SRU routing.
- * - LED4, LED5, LED6, LED7, LED8 (DAI LEDs) are configured using SRU routing.
- *
- * Additionally, it sets the flag pins for LED1-LED3 as outputs and initializes
- * them to HIGH.
- */
 void InitSRU(void)
 {
 	// Configuration for LED1, LED2, LED3 (DPI LEDs)
@@ -68,13 +51,6 @@ void InitSRU(void)
     sysreg_bit_set(sysreg_FLAGS, (FLG4 | FLG5 | FLG6));
 }
 
-/**
- * @brief Initialize the LED system.
- *
- * This function initializes the hardware components required for LED control.
- * It calls the system initialization routines, configures the SRU, and turns
- * all LEDs off.
- */
 void led_init(void)
 {
     adi_initComponents();
@@ -82,12 +58,6 @@ void led_init(void)
     led_all_off();
 }
 
-/**
- * @brief Turn off all LEDs.
- *
- * This function turns off all LEDs by clearing the flag pins for the DPI LEDs
- * and setting the corresponding SRU outputs to LOW for the DAI LEDs.
- */
 void led_all_off(void)
 {
 	// Turn off LED1, LED2, LED3 via flag pins
@@ -102,13 +72,6 @@ void led_all_off(void)
     SRU(LOW, DAI_PB17_I);
 }
 
-/**
- * @brief Turn on a specific LED.
- *
- * This function turns on an LED based on its index.
- *
- * @param led_index Index of the LED to be turned on (0 corresponds to LED1, 1 to LED2, etc.).
- */
 void led_on(int led_index)
 {
     switch (led_index) {
@@ -141,13 +104,6 @@ void led_on(int led_index)
     }
 }
 
-/**
- * @brief Turn off a specific LED.
- *
- * This function turns off an LED based on its index.
- *
- * @param led_index Index of the LED to be turned off (0 corresponds to LED1, 1 to LED2, etc.).
- */
 void led_off(int led_index)
 {
     switch (led_index) {
@@ -179,3 +135,4 @@ void led_off(int led_index)
             break;
     }
 }
+

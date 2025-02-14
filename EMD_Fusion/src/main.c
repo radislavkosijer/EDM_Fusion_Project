@@ -13,7 +13,8 @@
  * 4. Calculating local variance using a 3x3 window.
  * 5. Generating a decision mask based on the variance.
  * 6. Fusing the images using the decision mask.
- * 7. Saving the fused image to a binary file.
+ * 7. Performing linear histogram stretching to pixel value
+ * 8. Saving the fused image to a binary file.
  *
  * Created on: January 20, 2025.
  * Author: Radislav Kosijer
@@ -26,10 +27,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <cycle_count.h>
-#include "emd.h"         // Declarations for EMD functions and conversions.
-#include "image_io.h"   // Functions for saving images
-#include "led.h"       // LED control
+#include "emd.h"            // Declarations for EMD functions and conversions.
+#include "decision_mask.h" // Declaration for local variance and decision mask
+#include "fusion.h"       // Declaration for image processing functions
+#include "led.h"         // Declaration for LED control functions
 #include "p27a.h"
 #include "p27b.h"
 
@@ -69,11 +70,9 @@ static unsigned char buffer_fused_image[MAX_SIGNAL_LEN];
 
 
 int main(void) {
-    cycle_t start_count;
-    cycle_t final_count;
 
-    led_init();         // Inicijalizuj LED diode
-    led_all_off();      // Gašenje svih LED dioda na početku
+    led_init();         // Initialize LE diodes.
+    led_all_off();      // Turn off all LED at start.
 
     // Assume both images have the same dimensions.
     unsigned int width = p27a_width;
@@ -89,55 +88,34 @@ int main(void) {
     int32_t* signal2 = buffer_signal2;
 
     // Convert 8-bit image data to Q16.16 fixed-point format.
-    START_CYCLE_COUNT(start_count);
     convert_to_q16_16(vector1, signal1, num_pixels);
     convert_to_q16_16(vector2, signal2, num_pixels);
-    STOP_CYCLE_COUNT(final_count, start_count);
-    PRINT_CYCLES("Conversion to Q16.16: \n", final_count);
 
     // Apply EMD decomposition to each signal.
-    START_CYCLE_COUNT(start_count);
     emd_decompose(signal1, num_pixels);
     emd_decompose(signal2, num_pixels);
-    STOP_CYCLE_COUNT(final_count, start_count);
-    PRINT_CYCLES("EMD decomposition: \n", final_count);
 
     // Use pre-allocated buffers for local variance maps.
     int32_t* var_map1 = var_map1_buffer;
     int32_t* var_map2 = var_map2_buffer;
 
     // Calculate local variance (using a 3x3 window) for both signals.
-    START_CYCLE_COUNT(start_count);
     calculate_local_variance(signal1, width, height, var_map1);
     calculate_local_variance(signal2, width, height, var_map2);
-    STOP_CYCLE_COUNT(final_count, start_count);
-    PRINT_CYCLES("Calculation of local variance: \n", final_count);
 
     // Generate a decision mask based on the local variance of both images.
     char* alpha_mask = alpha_mask_buffer;
-    START_CYCLE_COUNT(start_count);
     generate_decision_mask(var_map1, var_map2, width, height, alpha_mask);
-    STOP_CYCLE_COUNT(final_count, start_count);
-    PRINT_CYCLES("Generation of decision mask: \n", final_count);
 
     // Fuse the images using the decision mask.
     unsigned char* fused_img = buffer_fused_image;
-    START_CYCLE_COUNT(start_count);
     fuse_images(vector1, vector2, alpha_mask, width, height, fused_img);
-    STOP_CYCLE_COUNT(final_count, start_count);
-    PRINT_CYCLES("Images fusion: \n", final_count);
 
     // Perform linear histogram stretching
-    START_CYCLE_COUNT(start_count);
     histogram_stretch(fused_img, width, height);
-    STOP_CYCLE_COUNT(final_count, start_count);
-    PRINT_CYCLES("Stretching pixel value: \n", final_count);
 
     // Save the fused image to a binary file.
-    START_CYCLE_COUNT(start_count);
     save_fused_image("fused_image.bin", width, height, fused_img);
-    STOP_CYCLE_COUNT(final_count, start_count);
-    PRINT_CYCLES("Saving fused image: \n", final_count);
 
     printf("Image fusion successfully completed!\n");
 
