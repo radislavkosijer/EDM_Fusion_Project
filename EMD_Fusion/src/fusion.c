@@ -86,7 +86,7 @@ void save_fused_image(const char *filename, unsigned int width, unsigned int hei
     size_t groups = num_pixels / 4;
     size_t leftovers = num_pixels % 4;
     const unsigned char *p = fused_img;
-    size_t segment_size = groups / 8; // Velicina jednog segmenta
+    size_t segment_size = groups / 8; // Size of segment
     // Process pixel data in groups of 4 bytes
     for (size_t i = 0; i < groups; i++) {
         uint32_t pixelGroup = ((uint32_t)p[0])        |
